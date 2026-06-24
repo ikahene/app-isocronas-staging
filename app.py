@@ -115,20 +115,23 @@ with col1:
             st.error("Formato de texto no reconocido. Pega las coordenadas separadas por una coma.")
 
 with col2:
-    top_col1, top_col2 = st.columns([3, 1])
+    # 1. DIVIDIMOS EN 3 COLUMNAS: Título (25%), Selector (20%), Espacio vacío (55%)
+    # Esto fuerza a que ambos elementos queden acorralados a la izquierda
+    c_titulo, c_selector, c_vacio = st.columns([1.5, 1, 3])
     
-    with top_col1:
-        st.header("Isocrona generada")
+    with c_titulo:
+        # Usamos markdown para que la altura del texto se alinee mejor con el selector
+        st.markdown("### Isocrona generada")
         
-    with top_col2:
-        # Movemos el selectbox aquí arriba
+    with c_selector:
         st.session_state.estilo = st.selectbox(
             "Visualización de capa:", 
             ["Profesional", "Mapa de calor", "Alto contraste"],
             index=["Profesional", "Mapa de calor", "Alto contraste"].index(st.session_state.estilo),
-            label_visibility="collapsed" 
+            label_visibility="collapsed" # Oculta el texto para mantener la línea limpia
         )
 
+    # 2. DIBUJAMOS EL MAPA
     m = folium.Map(location=[st.session_state.calc_lat, st.session_state.calc_lon], zoom_start=14, tiles='CartoDB positron')
 
     folium.Marker(
@@ -142,5 +145,6 @@ with col2:
 
     st_folium(m, width=900, height=520)
 
+    # 3. MOSTRAMOS LA DIRECCIÓN ABAJO
     st.markdown("""**Ubicación analizada:**""")
     st.caption(f"**{st.session_state.direccion}**")
