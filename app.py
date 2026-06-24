@@ -115,8 +115,20 @@ with col1:
             st.error("Formato de texto no reconocido. Pega las coordenadas separadas por una coma.")
 
 with col2:
-    st.header("Isocrona generada")
-    # Mapa dibujado
+    top_col1, top_col2 = st.columns([3, 1])
+    
+    with top_col1:
+        st.header("Isocrona generada")
+        
+    with top_col2:
+        # Movemos el selectbox aquí arriba
+        st.session_state.estilo = st.selectbox(
+            "Visualización de capa:", 
+            ["Profesional", "Mapa de calor", "Alto contraste"],
+            index=["Profesional", "Mapa de calor", "Alto contraste"].index(st.session_state.estilo),
+            label_visibility="collapsed" 
+        )
+
     m = folium.Map(location=[st.session_state.calc_lat, st.session_state.calc_lon], zoom_start=14, tiles='CartoDB positron')
 
     folium.Marker(
@@ -130,15 +142,5 @@ with col2:
 
     st_folium(m, width=900, height=520)
 
-    sc1, sc2 = st.columns([3, 1])
-    with sc1:
-        st.markdown("""**Ubicacion analizada**""")
-        st.caption(f"**{st.session_state.direccion}**") 
-
-
-    with sc2:
-        st.session_state.estilo = st.selectbox(
-            "Visualización de capa:", 
-            ["Profesional", "Mapa de calor", "Alto contraste"],
-            index=["Profesional", "Mapa de calor", "Alto contraste"].index(st.session_state.estilo)
-        )
+    st.markdown("""**Ubicación analizada:**""")
+    st.caption(f"**{st.session_state.direccion}**")
