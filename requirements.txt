@@ -3,3 +3,4 @@ openrouteservice
 folium
 streamlit-folium
 geopy
+numpy

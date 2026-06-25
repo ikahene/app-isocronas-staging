@@ -2,7 +2,8 @@ import streamlit as st
 import openrouteservice
 import folium
 from streamlit_folium import st_folium
-from geopy.geocoders import Nominatim 
+from geopy.geocoders import Nominatim
+from numpy.random import default_rng as rng 
 
 # --- CONFIGURACIÓN ---
 API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImQ5MWI5ZjY4ZmYwZTQ1ZWFhZTliYmJmNjdjNzg5MjRmIiwiaCI6Im11cm11cjY0In0='
@@ -68,11 +69,15 @@ def get_style(feature):
 mapa_modos = {"Auto": "driving-car", "A pie": "foot-walking", "Bicicleta": "cycling-regular"}
 
 # --- 3. LAYOUT ---
+st.markdown("<h1 style='text-align: center;'>🗺️ Generador de Isocronas</h1>", unsafe_allow_html=True)
+
+st.divider()
+
 col1, col2 = st.columns([1, 3])
 
 with col1:
-    st.header("Configuración")
-    st.markdown("""
+    st.subheader("Configuración")
+    st.info("""
     **Ingresa la ubicación**
     1. Busca el lugar en **Google Maps**.
     2. Haz **clic derecho** sobre el punto exacto.
@@ -96,7 +101,7 @@ with col1:
         lat_parseada, lon_parseada = extraer_lat_lon(texto_ingresado)
         
         if lat_parseada is not None and lon_parseada is not None:
-            with st.spinner('Mapeando territorio...'):
+            with st.spinner(':shimmer[Mapeando territorio...]'):
                 try:
                     # Guardamos oficialmente en la memoria
                     st.session_state.calc_lat = lat_parseada
@@ -115,13 +120,11 @@ with col1:
             st.error("Formato de texto no reconocido. Pega las coordenadas separadas por una coma.")
 
 with col2:
-    # 1. DIVIDIMOS EN 3 COLUMNAS: Título (25%), Selector (20%), Espacio vacío (55%)
-    # Esto fuerza a que ambos elementos queden acorralados a la izquierda
-    c_titulo, c_selector, c_vacio = st.columns([1.5, 1, 3])
+    c_titulo, c_selector, c_vacio = st.columns([3, 1.5, 1])
     
     with c_titulo:
         # Usamos markdown para que la altura del texto se alinee mejor con el selector
-        st.markdown("### Isocrona generada")
+        st.subheader("Isocrona generada")
         
     with c_selector:
         st.session_state.estilo = st.selectbox(
@@ -148,3 +151,21 @@ with col2:
     # 3. MOSTRAMOS LA DIRECCIÓN ABAJO
     st.markdown("""**Ubicación analizada:**""")
     st.caption(f"**{st.session_state.direccion}**")
+
+st.divider()
+#---5.Mostrar data----
+st.subheader("Información territorial")
+tab1, tab2 = st.tabs(["Resumen", "Información detallada"])
+
+with tab1:
+    a, b = st.columns(2)
+    c, d = st.columns(2)
+
+    a.metric(label ="Área [m²]", value = "20 m²", delta = "0 m²" ,border = True)
+    b.metric(label = "Gasto zona [CLP]", value = "$ 200 ", delta = "0 CLP", border = True)
+    c.metric(label = "Cantidad de hogares", value = "2000", delta = "0", border = True)
+    d.metric(label = "Cantidad de habitantes", value = "5000", delta = "0", border = True)
+
+with tab2:
+    df = rng(0).standard_normal((10,1))
+    tab2.write(df)
