@@ -3,4 +3,7 @@ openrouteservice
 folium
 streamlit-folium
 geopy
-numpy
+geopandas
+pandas
+shapely.geometry
+pathlib
