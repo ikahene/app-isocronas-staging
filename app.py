@@ -19,6 +19,35 @@ RUTA_MANZANAS = Path(__file__).parent / "Cartografía_censo2024_R13" / "Cartogra
 st.set_page_config(layout="wide", page_title="Análisis territorial")
 
 
+# ── Columnas de conteo que se ponderan por fracción de área ──
+COLS_CONTEO = [
+    # Demografía
+    "n_per", "n_hombres", "n_mujeres",
+    "n_edad_0_5", "n_edad_6_14", "n_edad_15_24",
+    "n_edad_25_44", "n_edad_45_59", "n_edad_60_mas",
+    "n_inmigrantes",
+    # Educación CINE
+    "n_cine_nunca_curso_primera_infancia",
+    "n_cine_primaria", "n_cine_secundaria",
+    "n_cine_terciaria_maestria_doctorado",
+    # Empleo
+    "n_ocupado", "n_desocupado", "n_fuera_fuerza_trabajo",
+    # Vivienda
+    "n_vp", "n_tipo_viv_casa", "n_tipo_viv_depto",
+    "n_tipo_viv_pieza", "n_tipo_viv_mediagua",
+    "n_tipo_viv_movil", "n_tipo_viv_otro",
+    # Hogares y tenencia
+    "n_hog",
+    "n_tenencia_propia_pagada", "n_tenencia_propia_pagandose",
+    "n_tenencia_arrendada_contrato", "n_tenencia_arrendada_sin_contrato",
+    "n_tenencia_cedida_trabajo", "n_tenencia_cedida_familiar",
+    "n_tenencia_otro",
+]
+
+# Umbral mínimo de fracción para incluir una manzana (evita slivers)
+FRACCION_MINIMA = 0.01  # 1%
+
+
 # --- CARGA DE DATOS CENSALES (una sola vez, cacheado) ---
 @st.cache_data
 def cargar_manzanas():
@@ -44,40 +73,119 @@ def cargar_manzanas_con_datos():
     return gdf[gdf["MZ_BASE_CENSO"] == 1].copy()
 
 
-def cruzar_isocrona_con_manzanas(isocrona_geojson, gdf_manzanas):
+# --- FUNCIONES DE CRUCE E INTERPOLACIÓN AREAL ---
 
-    # Extraer el polígono de la isócrona desde el GeoJSON de ORS
+def cruzar_isocrona_con_manzanas(isocrona_geojson, gdf_manzanas):
+    """
+    Cruza la isócrona con las manzanas censales usando interpolación areal.
+
+    Retorna un GeoDataFrame con:
+    - fraccion_area: proporción del área de la manzana dentro de la isócrona
+    - metodo: 'completa' (≥99%) o 'parcial' (<99%)
+    - Columnas de conteo ya ponderadas por la fracción
+    """
+
+    # 1. Extraer polígono de la isócrona
     poligono_iso = shape(isocrona_geojson["features"][0]["geometry"])
 
-    # Calcular centroides de las manzanas
-    centroides = gdf_manzanas.geometry.centroid
+    # 2. Filtro rápido: solo manzanas que intersectan la isócrona
+    candidatas = gdf_manzanas[gdf_manzanas.intersects(poligono_iso)].copy()
 
-    # Filtrar manzanas cuyo centroide cae dentro de la isócrona
-    mascara = centroides.within(poligono_iso)
-    manzanas_dentro = gdf_manzanas[mascara].copy()
+    if candidatas.empty:
+        return candidatas
 
-    return manzanas_dentro
+    # 3. Reproyectar a UTM zona 19S para cálculos de área en metros
+    candidatas_utm = candidatas.to_crs(epsg=32719)
+    gdf_iso = gpd.GeoDataFrame(geometry=[poligono_iso], crs="EPSG:4326")
+    iso_utm = gdf_iso.to_crs(epsg=32719)
+    poligono_iso_utm = iso_utm.geometry.iloc[0]
+
+    # 4. Calcular área total de cada manzana
+    candidatas_utm["area_manzana_m2"] = candidatas_utm.geometry.area
+
+    # 5. Calcular intersección geométrica y su área
+    candidatas_utm["geom_interseccion"] = candidatas_utm.geometry.intersection(poligono_iso_utm)
+    candidatas_utm["area_interseccion_m2"] = candidatas_utm["geom_interseccion"].area
+
+    # 6. Calcular fracción de área
+    candidatas_utm["fraccion_area"] = (
+        candidatas_utm["area_interseccion_m2"] / candidatas_utm["area_manzana_m2"]
+    )
+
+    # 7. Filtrar slivers
+    resultado = candidatas_utm[candidatas_utm["fraccion_area"] >= FRACCION_MINIMA].copy()
+
+    if resultado.empty:
+        return gpd.GeoDataFrame()
+
+    # 8. Clasificar método
+    resultado["metodo"] = resultado["fraccion_area"].apply(
+        lambda f: "completa" if f >= 0.99 else "parcial"
+    )
+
+    # 9. Ponderar columnas de conteo por fracción de área
+    cols_presentes = [c for c in COLS_CONTEO if c in resultado.columns]
+    for col in cols_presentes:
+        resultado[f"{col}_original"] = resultado[col]
+        resultado[col] = (resultado[col] * resultado["fraccion_area"]).round(1)
+
+    # 10. Limpiar y volver a EPSG:4326
+    resultado = resultado.drop(columns=["geom_interseccion"])
+    resultado = resultado.to_crs(epsg=4326)
+
+    return resultado
 
 
 def calcular_metricas(manzanas_dentro):
+    """
+    Calcula métricas agregadas. Las columnas de conteo ya vienen ponderadas
+    por fraccion_area desde cruzar_isocrona_con_manzanas().
+    """
+    if manzanas_dentro.empty:
+        return {
+            "area_m2": 0, "area_km2": 0, "poblacion": 0,
+            "hogares": 0, "viviendas": 0, "prom_escolaridad": 0,
+            "n_manzanas": 0, "n_parciales": 0, "n_completas": 0,
+        }
 
-    mz_utm = manzanas_dentro.to_crs(epsg=32719)
-    area_m2 = mz_utm.geometry.area.sum()
+    # Área efectiva: suma de las intersecciones reales
+    if "area_interseccion_m2" in manzanas_dentro.columns:
+        area_m2 = manzanas_dentro["area_interseccion_m2"].sum()
+    else:
+        mz_utm = manzanas_dentro.to_crs(epsg=32719)
+        area_m2 = mz_utm.geometry.area.sum()
 
     poblacion = manzanas_dentro["n_per"].sum()
     hogares = manzanas_dentro["n_hog"].sum()
     viviendas = manzanas_dentro["n_vp"].sum()
-    prom_escolaridad = manzanas_dentro["prom_escolaridad18"].mean()
+
+    # Escolaridad: promedio ponderado por población ajustada
+    if "prom_escolaridad18" in manzanas_dentro.columns and "n_per" in manzanas_dentro.columns:
+        mask = manzanas_dentro["prom_escolaridad18"].notna() & (manzanas_dentro["n_per"] > 0)
+        sub = manzanas_dentro[mask]
+        if len(sub) > 0:
+            prom_escolaridad = (
+                (sub["prom_escolaridad18"] * sub["n_per"]).sum() / sub["n_per"].sum()
+            )
+        else:
+            prom_escolaridad = 0
+    else:
+        prom_escolaridad = 0
+
     n_manzanas = len(manzanas_dentro)
+    n_parciales = int((manzanas_dentro["metodo"] == "parcial").sum()) if "metodo" in manzanas_dentro.columns else 0
+    n_completas = n_manzanas - n_parciales
 
     return {
         "area_m2": area_m2,
         "area_km2": area_m2 / 1_000_000,
-        "poblacion": int(poblacion) if pd.notna(poblacion) else 0,
-        "hogares": int(hogares) if pd.notna(hogares) else 0,
-        "viviendas": int(viviendas) if pd.notna(viviendas) else 0,
+        "poblacion": int(round(poblacion)) if pd.notna(poblacion) else 0,
+        "hogares": int(round(hogares)) if pd.notna(hogares) else 0,
+        "viviendas": int(round(viviendas)) if pd.notna(viviendas) else 0,
         "prom_escolaridad": round(prom_escolaridad, 1) if pd.notna(prom_escolaridad) else 0,
         "n_manzanas": n_manzanas,
+        "n_parciales": n_parciales,
+        "n_completas": n_completas,
     }
 
 
@@ -90,6 +198,9 @@ def generar_resumen_comunal(manzanas_dentro):
         ocupados=("n_ocupado", "sum"),
         inmigrantes=("n_inmigrantes", "sum"),
     ).round(1).sort_values("poblacion", ascending=False).reset_index()
+
+    for col in ["poblacion", "hogares", "ocupados", "inmigrantes"]:
+        resumen[col] = resumen[col].round(0).astype(int)
 
     resumen.columns = ["Comuna", "Población", "Hogares", "Manzanas",
                        "Escolaridad prom.", "Ocupados", "Inmigrantes"]
@@ -106,7 +217,7 @@ def generar_resumen_educacion(manzanas_dentro):
     datos = {}
     for col, label in cols_edu.items():
         if col in manzanas_dentro.columns:
-            datos[label] = int(manzanas_dentro[col].sum())
+            datos[label] = int(round(manzanas_dentro[col].sum()))
 
     df = pd.DataFrame(list(datos.items()), columns=["Nivel educativo", "Personas"])
     total = df["Personas"].sum()
@@ -126,7 +237,7 @@ def generar_resumen_vivienda(manzanas_dentro):
     datos = {}
     for col, label in cols_viv.items():
         if col in manzanas_dentro.columns:
-            datos[label] = int(manzanas_dentro[col].sum())
+            datos[label] = int(round(manzanas_dentro[col].sum()))
 
     df = pd.DataFrame(list(datos.items()), columns=["Tipo vivienda", "Cantidad"])
     total = df["Cantidad"].sum()
@@ -256,7 +367,7 @@ with col1:
                     )
                     st.session_state.direccion = obtener_direccion_calle(lat_parseada, lon_parseada)
 
-                    # 2. Cruzar con manzanas censales
+                    # 2. Cruzar con manzanas censales (interpolación areal)
                     if datos_cargados:
                         manzanas_dentro = cruzar_isocrona_con_manzanas(
                             st.session_state.isocrona_data, gdf_manzanas
@@ -324,13 +435,19 @@ if met is not None:
     with tab1:
         a, b = st.columns(2)
         triang = float(met['viviendas']) - float(met['hogares'])
-        a.metric(label="Habitantes", value=f"{met['poblacion']:,}", delta = 0, border=True)
-        b.metric(label="Viviendas", value=f"{met['viviendas']:,}", delta = triang, border=True)
+        a.metric(label="Habitantes", value=f"{met['poblacion']:,}", delta=0, border=True)
+        b.metric(label="Viviendas", value=f"{met['viviendas']:,}", delta=triang, border=True)
 
         e, f = st.columns(2)
-        e.metric(label="Área (km²)", value=f"{met['area_km2']:.2f}", delta = 0, border=True)
-        f.metric(label="Gasto total", value= 0, delta = 0, border=True)
-        
+        e.metric(label="Área (km²)", value=f"{met['area_km2']:.2f}", delta=0, border=True)
+        f.metric(label="Gasto total", value=0, delta=0, border=True)
+
+        # Indicador de interpolación areal
+        st.caption(
+            f"🔍 {met['n_manzanas']} manzanas analizadas: "
+            f"{met['n_completas']} completas + {met['n_parciales']} parciales (interpolación areal)"
+        )
+
         # Tabla por comuna
         st.subheader("Desglose por comuna")
         df_comunas = generar_resumen_comunal(mz_res)
@@ -346,9 +463,9 @@ if met is not None:
 
         with col_emp:
             st.markdown("**Situación laboral**")
-            ocupados = int(mz_res["n_ocupado"].sum()) if "n_ocupado" in mz_res.columns else 0
-            desocupados = int(mz_res["n_desocupado"].sum()) if "n_desocupado" in mz_res.columns else 0
-            fuera = int(mz_res["n_fuera_fuerza_trabajo"].sum()) if "n_fuera_fuerza_trabajo" in mz_res.columns else 0
+            ocupados = int(round(mz_res["n_ocupado"].sum())) if "n_ocupado" in mz_res.columns else 0
+            desocupados = int(round(mz_res["n_desocupado"].sum())) if "n_desocupado" in mz_res.columns else 0
+            fuera = int(round(mz_res["n_fuera_fuerza_trabajo"].sum())) if "n_fuera_fuerza_trabajo" in mz_res.columns else 0
 
             df_emp = pd.DataFrame({
                 "Categoría": ["Ocupados", "Desocupados", "Fuera fuerza de trabajo"],
@@ -380,7 +497,7 @@ if met is not None:
             datos_ten = {}
             for col, label in cols_ten.items():
                 if col in mz_res.columns:
-                    datos_ten[label] = int(mz_res[col].sum())
+                    datos_ten[label] = int(round(mz_res[col].sum()))
             df_ten = pd.DataFrame(list(datos_ten.items()), columns=["Tenencia", "Hogares"])
             total_ten = df_ten["Hogares"].sum()
             df_ten["% del total"] = (df_ten["Hogares"] / total_ten * 100).round(1) if total_ten > 0 else 0
