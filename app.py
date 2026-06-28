@@ -25,16 +25,18 @@ def cargar_manzanas():
     # Si el archivo no existe en el servidor de Streamlit, lo descarga de Drive
     if not RUTA_MANZANAS.exists():
         RUTA_MANZANAS.parent.mkdir(parents=True, exist_ok=True)
-        id_drive = "https://drive.google.com/file/d/1nM1USy_lmB-tbgvy6JUzS6r23PUZExoj/view?usp=sharing"
-        url = f"https://drive.google.com/uc?id={id_drive}"
-        gdown.download(url, str(RUTA_MANZANAS), quiet=False)
+        
+        # SOLO EL CÓDIGO ALFANUMÉRICO (sin el https ni el /view):
+        id_drive = "1nM1USy_lmB-tbgvy6JUzS6r23PUZExoj"
+        
+        # Le pasamos el ID directamente al motor de gdown:
+        gdown.download(id=id_drive, output=str(RUTA_MANZANAS), quiet=False)
 
     gdf = gpd.read_parquet(RUTA_MANZANAS)
     gdf["MANZENT"] = gdf["MANZENT"].apply(lambda x: str(int(x)) if pd.notna(x) else None)
     gdf = gdf.to_crs(epsg=4326)
     gdf["geometry"] = gdf.geometry.make_valid()
     return gdf
-
 
 @st.cache_data
 def cargar_manzanas_con_datos():
