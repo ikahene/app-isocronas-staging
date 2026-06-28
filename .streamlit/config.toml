@@ -1,1 +1,108 @@
+[theme]
+base = "light"
 
+# El Verde Ácido/Pistacho exacto de la rana
+primaryColor = "#84CC16"
+
+# Fondo "Papel Editorial" (un blanco roto cálido, muy suizo)
+backgroundColor = "#FDFBF7"
+
+# Contenedores secundarios en un tono piedra suave
+secondaryBackgroundColor = "#F2EFE9"
+
+# Texto en Verde Bosque Profundo (Da coherencia cromática total)
+textColor = "#14532D"
+
+# --- PALETA BÁSICA DE ACENTOS (Para alertas, tags o semáforos) ---
+redColor = "#E11D48"       # Rojo Rosa (moderno, no el rojo "error de Windows 98")
+orangeColor = "#F97316"    # Naranja Mandarina (vibrante)
+yellowColor = "#EAB308"    # Ámbar dorado
+blueColor = "#0284C7"      # Azul Cielo tech
+greenColor = "#10B981"     # Verde Menta
+violetColor = "#8B5CF6"    # Violeta eléctrico
+grayColor = "#64748B"      # Pizarra medio
+
+# Fondos derivados transparentes para alertas (los dejamos vinculados a tus colores)
+redBackgroundColor = "#FFF1F2"
+orangeBackgroundColor = "#FFF7ED"
+yellowBackgroundColor = "#FEFCE8"
+blueBackgroundColor = "#F0F9FF"
+greenBackgroundColor = "#ECFDF5"
+violetBackgroundColor = "#F5F3FF"
+grayBackgroundColor = "#F8FAFC"
+
+redTextColor = "#9F1239"
+orangeTextColor = "#C2410C"
+yellowTextColor = "#A16207"
+blueTextColor = "#0369A1"
+greenTextColor = "#047857"
+violetTextColor = "#6D28D9"
+grayTextColor = "#334155"
+
+linkColor = "#0FA388"
+linkUnderline = false
+
+codeTextColor = "#0FA388"
+codeBackgroundColor = "#E2E8F0"
+
+font = "sans serif"
+baseFontSize = 15
+baseRadius = "0.25rem" # Reducimos el radio a 4px para que se vea más geométrico y brutalista
+
+baseFontWeight = 400
+
+headingFont = "sans serif"
+# Jerarquía matemática perfecta de títulos (de H1 a H6)
+headingFontSizes = ["2.4rem", "1.8rem", "1.4rem", "1.15rem", "1rem", "0.85rem"]
+headingFontWeights = [700, 600, 600, 600, 600, 600]
+
+codeFont = "monospace"
+codeFontSize = "0.85rem"
+codeFontWeight = 400
+
+# EL SECRETO SAAS: Bordes redondeados de 8px (0.5rem). Da el look de software caro.
+buttonRadius = "0.5rem"
+
+borderColor = "#E2E8F0"
+dataframeBorderColor = "#CBD5E1"
+dataframeHeaderBackgroundColor = "#E2E8F0"
+
+showWidgetBorder = true
+showSidebarBorder = true
+
+# --- INTELIGENCIA CARTOGRÁFICA PARA TUS GRÁFICOS ---
+
+# Secuencia de 7 colores para gráficos de barras de categorías (Ej: Tipos de vivienda)
+chartCategoricalColors = [
+    "#0FA388", # 1. Esmeralda (Tu primario)
+    "#3B82F6", # 2. Azul Pizarra
+    "#F59E0B", # 3. Ámbar (da el contraste cálido perfecto)
+    "#F43F5E", # 4. Coral
+    "#8B5CF6", # 5. Violeta
+    "#10B981", # 6. Menta
+    "#64748B"  # 7. Pizarra neutro
+]
+
+# Escala secuencial de 10 tonos (Para densidad poblacional: de 0 habitantes a 5.000)
+# Va de un Blanco-Menta casi transparente a un Verde Bosque casi negro.
+chartSequentialColors = [
+    "#F0FDFA", "#CCFBF1", "#99F6E4", "#5EEAD4", "#2DD4BF", 
+    "#14B8A6", "#0FA388", "#0F766E", "#115E59", "#134E4A"
+]
+
+# Escala divergente (Para tasas de crecimiento: de Pérdida roja -> Centro neutro -> Ganancia verde)
+chartDivergingColors = [
+    "#991B1B", "#DC2626", "#F87171", "#FCA5A5", "#FEF2F2", 
+    "#F0FDFA", "#99F6E4", "#2DD4BF", "#0FA388", "#134E4A"
+]
+
+
+[client]
+toolbarMode = "minimal"
+showErrorDetails = false
+
+[server]
+maxUploadSize = 500
+
+[browser]
+gatherUsageStats = false
