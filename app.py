@@ -7,9 +7,10 @@ import geopandas as gpd
 import pandas as pd
 from shapely.geometry import shape
 from pathlib import Path
+import gdown
 
 # --- CONFIGURACIÓN ---
-API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImQ5MWI5ZjY4ZmYwZTQ1ZWFhZTliYmJmNjdjNzg5MjRmIiwiaCI6Im11cm11cjY0In0='
+API_KEY = st.secrets["ORS_KEY"]
 client = openrouteservice.Client(key=API_KEY)
 
 # Ruta al parquet de manzanas — AJUSTA si tu estructura es diferente
@@ -21,16 +22,17 @@ st.set_page_config(layout="wide", page_title="Análisis territorial")
 # --- CARGA DE DATOS CENSALES (una sola vez, cacheado) ---
 @st.cache_data
 def cargar_manzanas():
+    # Si el archivo no existe en el servidor de Streamlit, lo descarga de Drive
+    if not RUTA_MANZANAS.exists():
+        RUTA_MANZANAS.parent.mkdir(parents=True, exist_ok=True)
+        id_drive = "https://drive.google.com/file/d/1nM1USy_lmB-tbgvy6JUzS6r23PUZExoj/view?usp=sharing"
+        url = f"https://drive.google.com/uc?id={id_drive}"
+        gdown.download(url, str(RUTA_MANZANAS), quiet=False)
 
     gdf = gpd.read_parquet(RUTA_MANZANAS)
-
     gdf["MANZENT"] = gdf["MANZENT"].apply(lambda x: str(int(x)) if pd.notna(x) else None)
-
-    # Reproyectar SIRGAS 2000 (4674) → WGS84 (4326) para compatibilidad con ORS
     gdf = gdf.to_crs(epsg=4326)
-
     gdf["geometry"] = gdf.geometry.make_valid()
-
     return gdf
 
 
