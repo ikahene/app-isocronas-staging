@@ -44,9 +44,7 @@ COLS_CONTEO = [
     "n_tenencia_otro",
 ]
 
-# Umbral mínimo de fracción para incluir una manzana (evita slivers)
-FRACCION_MINIMA = 0.01  # 1%
-
+FRACCION_MINIMA = 0.01  
 
 # --- CARGA DE DATOS CENSALES (una sola vez, cacheado) ---
 @st.cache_data
@@ -55,10 +53,8 @@ def cargar_manzanas():
     if not RUTA_MANZANAS.exists():
         RUTA_MANZANAS.parent.mkdir(parents=True, exist_ok=True)
         
-        # SOLO EL CÓDIGO ALFANUMÉRICO (sin el https ni el /view):
         id_drive = "1nM1USy_lmB-tbgvy6JUzS6r23PUZExoj"
         
-        # Le pasamos el ID directamente al motor de gdown:
         gdown.download(id=id_drive, output=str(RUTA_MANZANAS), quiet=False)
 
     gdf = gpd.read_parquet(RUTA_MANZANAS)
@@ -72,19 +68,7 @@ def cargar_manzanas_con_datos():
     gdf = cargar_manzanas()
     return gdf[gdf["MZ_BASE_CENSO"] == 1].copy()
 
-
-# --- FUNCIONES DE CRUCE E INTERPOLACIÓN AREAL ---
-
 def cruzar_isocrona_con_manzanas(isocrona_geojson, gdf_manzanas):
-    """
-    Cruza la isócrona con las manzanas censales usando interpolación areal.
-
-    Retorna un GeoDataFrame con:
-    - fraccion_area: proporción del área de la manzana dentro de la isócrona
-    - metodo: 'completa' (≥99%) o 'parcial' (<99%)
-    - Columnas de conteo ya ponderadas por la fracción
-    """
-
     # 1. Extraer polígono de la isócrona
     poligono_iso = shape(isocrona_geojson["features"][0]["geometry"])
 
@@ -137,10 +121,7 @@ def cruzar_isocrona_con_manzanas(isocrona_geojson, gdf_manzanas):
 
 
 def calcular_metricas(manzanas_dentro):
-    """
-    Calcula métricas agregadas. Las columnas de conteo ya vienen ponderadas
-    por fraccion_area desde cruzar_isocrona_con_manzanas().
-    """
+
     if manzanas_dentro.empty:
         return {
             "area_m2": 0, "area_km2": 0, "poblacion": 0,
@@ -159,7 +140,6 @@ def calcular_metricas(manzanas_dentro):
     hogares = manzanas_dentro["n_hog"].sum()
     viviendas = manzanas_dentro["n_vp"].sum()
 
-    # Escolaridad: promedio ponderado por población ajustada
     if "prom_escolaridad18" in manzanas_dentro.columns and "n_per" in manzanas_dentro.columns:
         mask = manzanas_dentro["prom_escolaridad18"].notna() & (manzanas_dentro["n_per"] > 0)
         sub = manzanas_dentro[mask]
@@ -264,7 +244,7 @@ if 'manzanas_resultado' not in st.session_state:
     st.session_state.manzanas_resultado = None
 
 
-# --- 2. FUNCIONES AUXILIARES (originales) ---
+# --- 2. FUNCIONES AUXILIARES ---
 @st.cache_data
 def obtener_direccion_calle(lat, lon):
     try:
@@ -430,17 +410,16 @@ mz_res = st.session_state.manzanas_resultado
 
 if met is not None:
     # ── Tab de Resumen y Detalle ──
-    tab1, tab2, tab3 = st.tabs(["Resumen", "Educación y empleo", "Vivienda y territorio"])
+    tab1, tab2 = st.tabs(["Resumen", "INE"])
 
     with tab1:
         a, b = st.columns(2)
-        triang = float(met['viviendas']) - float(met['hogares'])
-        a.metric(label="Habitantes", value=f"{met['poblacion']:,}", delta=0, border=True)
-        b.metric(label="Viviendas", value=f"{met['viviendas']:,}", delta=triang, border=True)
+        a.metric(label="Habitantes", value=f"{met['poblacion']:,}", border=True)
+        b.metric(label="Viviendas", value=f"{met['viviendas']:,}", border=True)
 
         e, f = st.columns(2)
-        e.metric(label="Área (km²)", value=f"{met['area_km2']:.2f}", delta=0, border=True)
-        f.metric(label="Gasto total", value=0, delta=0, border=True)
+        e.metric(label="Área (km²)", value=f"{met['area_km2']:.2f}", border=True)
+        f.metric(label="Gasto total", value=0, border=True)
 
         # Indicador de interpolación areal
         st.caption(
@@ -454,14 +433,17 @@ if met is not None:
         st.dataframe(df_comunas, use_container_width=True, hide_index=True)
 
     with tab2:
-        col_edu, col_emp = st.columns(2)
+        options = ["Educación", "Empleo", "Tipo de vivienda", "Propiedad vivienda"]
+        info = st.selectbox("¿Qué infomación deseas ver?", options)
 
-        with col_edu:
+        st.divider()
+
+        if info == "Educación":
             st.markdown("**Nivel educativo (CINE)**")
             df_edu = generar_resumen_educacion(mz_res)
             st.dataframe(df_edu, use_container_width=True, hide_index=True)
 
-        with col_emp:
+        elif info == "Empleo":
             st.markdown("**Situación laboral**")
             ocupados = int(round(mz_res["n_ocupado"].sum())) if "n_ocupado" in mz_res.columns else 0
             desocupados = int(round(mz_res["n_desocupado"].sum())) if "n_desocupado" in mz_res.columns else 0
@@ -475,15 +457,12 @@ if met is not None:
             df_emp["% del total"] = (df_emp["Personas"] / total_emp * 100).round(1) if total_emp > 0 else 0
             st.dataframe(df_emp, use_container_width=True, hide_index=True)
 
-    with tab3:
-        col_viv, col_terr = st.columns(2)
-
-        with col_viv:
+        elif info == "Tipo de vivienda":
             st.markdown("**Tipo de vivienda**")
             df_viv = generar_resumen_vivienda(mz_res)
             st.dataframe(df_viv, use_container_width=True, hide_index=True)
 
-        with col_terr:
+        else:
             st.markdown("**Tenencia de vivienda**")
             cols_ten = {
                 "n_tenencia_propia_pagada": "Propia pagada",
@@ -505,7 +484,7 @@ if met is not None:
 
 else:
     # Estado inicial antes de calcular
-    tab1, tab2 = st.tabs(["Resumen", "Información detallada"])
+    tab1, tab2 = st.tabs(["", ""])
     with tab1:
         st.caption("Calcula una isócrona para ver los datos censales del territorio.")
     with tab2:
