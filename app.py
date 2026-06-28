@@ -322,17 +322,14 @@ if met is not None:
     tab1, tab2, tab3 = st.tabs(["Resumen", "Educación y empleo", "Vivienda y territorio"])
 
     with tab1:
-        a, b, c, d = st.columns(4)
-        a.metric(label="Población", value=f"{met['poblacion']:,}", border=True)
-        b.metric(label="Hogares", value=f"{met['hogares']:,}", border=True)
-        c.metric(label="Viviendas", value=f"{met['viviendas']:,}", border=True)
-        d.metric(label="Manzanas censales", value=f"{met['n_manzanas']:,}", border=True)
+        a, b = st.columns(2)
+        triang = float(met['viviendas']) - float(met['hogares'])
+        a.metric(label="Habitantes", value=f"{met['poblacion']:,}", border=True)
+        b.metric(label="Viviendas", value=f"{met['viviendas']:,}", delta = triang, border=True)
 
-        e, f, g, h = st.columns(4)
+        e, f = st.columns(2)
         e.metric(label="Área (km²)", value=f"{met['area_km2']:.2f}", border=True)
         f.metric(label="Área (m²)", value=f"{met['area_m2']:,.0f}", border=True)
-        g.metric(label="Escolaridad prom. (años)", value=f"{met['prom_escolaridad']}", border=True)
-        h.metric(label="Fuente", value="Censo 2024", border=True)
 
         # Tabla por comuna
         st.markdown("**Desglose por comuna**")
