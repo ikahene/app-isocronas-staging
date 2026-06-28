@@ -119,7 +119,6 @@ def cruzar_isocrona_con_manzanas(isocrona_geojson, gdf_manzanas):
 
     return resultado
 
-
 def calcular_metricas(manzanas_dentro):
 
     if manzanas_dentro.empty:
@@ -168,7 +167,6 @@ def calcular_metricas(manzanas_dentro):
         "n_completas": n_completas,
     }
 
-
 def generar_resumen_comunal(manzanas_dentro):
     resumen = manzanas_dentro.groupby("COMUNA").agg(
         poblacion=("n_per", "sum"),
@@ -176,16 +174,14 @@ def generar_resumen_comunal(manzanas_dentro):
         manzanas=("MANZENT", "count"),
         prom_escolaridad=("prom_escolaridad18", "mean"),
         ocupados=("n_ocupado", "sum"),
-        inmigrantes=("n_inmigrantes", "sum"),
     ).round(1).sort_values("poblacion", ascending=False).reset_index()
 
-    for col in ["poblacion", "hogares", "ocupados", "inmigrantes"]:
+    for col in ["poblacion", "hogares", "ocupados"]:
         resumen[col] = resumen[col].round(0).astype(int)
 
     resumen.columns = ["Comuna", "Población", "Hogares", "Manzanas",
-                       "Escolaridad prom.", "Ocupados", "Inmigrantes"]
+                       "Escolaridad prom.", "Ocupados"]
     return resumen
-
 
 def generar_resumen_educacion(manzanas_dentro):
     cols_edu = {
@@ -203,7 +199,6 @@ def generar_resumen_educacion(manzanas_dentro):
     total = df["Personas"].sum()
     df["% del total"] = (df["Personas"] / total * 100).round(1) if total > 0 else 0
     return df
-
 
 def generar_resumen_vivienda(manzanas_dentro):
     cols_viv = {
@@ -223,7 +218,6 @@ def generar_resumen_vivienda(manzanas_dentro):
     total = df["Cantidad"].sum()
     df["% del total"] = (df["Cantidad"] / total * 100).round(1) if total > 0 else 0
     return df
-
 
 # --- 1. GESTIÓN DE ESTADO ---
 if 'calc_lat' not in st.session_state:
@@ -254,7 +248,6 @@ def obtener_direccion_calle(lat, lon):
     except Exception:
         return "No se pudo conectar al servidor de calles"
 
-
 def extraer_lat_lon(texto_google):
     try:
         texto_limpio = texto_google.replace("(", "").replace(")", "").replace("[", "").replace("]", "")
@@ -264,7 +257,6 @@ def extraer_lat_lon(texto_google):
         return lat, lon
     except Exception:
         return None, None
-
 
 def get_style(feature):
     value = feature['properties'].get('value', 0)
@@ -287,9 +279,7 @@ def get_style(feature):
     else:
         return {'fillColor': '#ff0000', 'color': '#000000', 'weight': 3, 'fillOpacity': 0.3}
 
-
 mapa_modos = {"Auto": "driving-car", "A pie": "foot-walking", "Bicicleta": "cycling-regular"}
-
 
 # --- 3. CARGA INICIAL DE MANZANAS ---
 try:
@@ -360,12 +350,6 @@ with col1:
         else:
             st.error("Formato de texto no reconocido. Pega las coordenadas separadas por una coma.")
 
-    # Indicador de estado de datos
-    if datos_cargados:
-        st.success(f"Datos censales: {len(gdf_manzanas):,} manzanas RM cargadas")
-    else:
-        st.error("Sin datos censales — métricas no disponibles")
-
 with col2:
     c_titulo, c_selector, c_vacio = st.columns([3, 1.5, 1])
 
@@ -400,7 +384,6 @@ with col2:
     st.caption(f"**{st.session_state.direccion}**")
 
 st.divider()
-
 
 # --- 5. INFORMACIÓN TERRITORIAL (datos reales del Censo) ---
 st.subheader("Información territorial")
