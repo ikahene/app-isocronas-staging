@@ -324,15 +324,15 @@ if met is not None:
     with tab1:
         a, b = st.columns(2)
         triang = float(met['viviendas']) - float(met['hogares'])
-        a.metric(label="Habitantes", value=f"{met['poblacion']:,}", border=True)
+        a.metric(label="Habitantes", value=f"{met['poblacion']:,}", delta = 0, border=True)
         b.metric(label="Viviendas", value=f"{met['viviendas']:,}", delta = triang, border=True)
 
         e, f = st.columns(2)
-        e.metric(label="Área (km²)", value=f"{met['area_km2']:.2f}", border=True)
-        f.metric(label="Área (m²)", value=f"{met['area_m2']:,.0f}", border=True)
-
+        e.metric(label="Área (km²)", value=f"{met['area_km2']:.2f}", delta = 0, border=True)
+        f.metric(label="Gasto total", value= 0, delta = 0, border=True)
+        
         # Tabla por comuna
-        st.markdown("**Desglose por comuna**")
+        st.subheader("Desglose por comuna")
         df_comunas = generar_resumen_comunal(mz_res)
         st.dataframe(df_comunas, use_container_width=True, hide_index=True)
 
