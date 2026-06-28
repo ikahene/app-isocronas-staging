@@ -263,12 +263,14 @@ def get_style(feature):
     estilo = st.session_state.estilo
 
     if estilo == "Profesional":
-        if value <= 600:
-            return {'fillColor': '#a8d8ea', 'color': '#2b6c8f', 'weight': 2, 'fillOpacity': 0.35}
-        elif value <= 1200:
-            return {'fillColor': '#6cb4d9', 'color': '#1a4a6b', 'weight': 2, 'fillOpacity': 0.35}
-        else:
-            return {'fillColor': '#2b8cbe', 'color': '#0d2b47', 'weight': 2, 'fillOpacity': 0.35}
+        # Usamos tonos monocromáticos del Verde Suizo
+        if value <= 600: # 10 mins
+            return {'fillColor': '#BEF264', 'color': '#3F6212', 'weight': 2, 'fillOpacity': 0.4}
+        elif value <= 1200: # 20 mins
+            return {'fillColor': '#84CC16', 'color': '#14532D', 'weight': 2, 'fillOpacity': 0.35}
+        else: # 30 mins
+            return {'fillColor': '#3F6212', 'color': '#052E16', 'weight': 2.5, 'fillOpacity': 0.3}
+        
     elif estilo == "Mapa de calor":
         if value <= 600:
             return {'fillColor': '#e74c3c', 'color': '#2c3e50', 'weight': 1.5, 'fillOpacity': 0.5}
@@ -294,8 +296,18 @@ except FileNotFoundError:
 
 
 # --- 4. LAYOUT ---
-st.markdown("<h1 style='text-align: center;'>Generador de Isocronas</h1>", unsafe_allow_html=True)
-st.divider()
+st.markdown(
+        """
+        <h1 style='margin-bottom: 0px; padding-bottom: 0px; color: #14532D; font-weight: 800; letter-spacing: -1px;'>
+            ISOCRONAS <span style='color: #84CC16;'>R13</span>
+        </h1>
+        <p style='margin-top: 2px; color: #65A30D; font-size: 14px; font-weight: 600; letter-spacing: 1px;'>
+            MOTOR DE INTERPOLACIÓN AREAL & CENSAL • REGIONAL
+        </p>
+        """, 
+        unsafe_allow_html=True
+    )
+st.markdown("<hr style='border: none; height: 2px; background-color: #14532D; opacity: 0.15; margin-top: 5px; margin-bottom: 25px;'>", unsafe_allow_html=True)
 
 col1, col2 = st.columns([1, 3])
 
@@ -372,7 +384,7 @@ with col2:
     folium.Marker(
         [st.session_state.calc_lat, st.session_state.calc_lon],
         popup="Punto de Origen",
-        icon=folium.Icon(color='blue', icon='info-sign')
+        icon=folium.Icon(color='black', icon='crosshairs', prefix='fa') # 'fa' usa FontAwesome nativo
     ).add_to(m)
 
     if st.session_state.isocrona_data:
@@ -384,6 +396,7 @@ with col2:
     st.caption(f"**{st.session_state.direccion}**")
 
 st.divider()
+
 
 # --- 5. INFORMACIÓN TERRITORIAL (datos reales del Censo) ---
 st.subheader("Información territorial")
